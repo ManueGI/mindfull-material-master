@@ -1,27 +1,21 @@
 // import React from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebase';
-import { useNavigate } from 'react-router-dom';
-import{ useEffect, useState } from "react";
-import {
-  ref,
-  onValue,
-  push,
-  update,
-  remove,
-} from "firebase/database";
+import { signOut } from "firebase/auth";
+import { auth } from "../../firebase";
+import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { ref, onValue, push, update, remove } from "firebase/database";
 import { database } from "../../firebase";
 
 const Admin = () => {
-
   const navigate = useNavigate();
 
-    const handleLogout = async () => {
-      await signOut(auth);
-      navigate('/login');
-    };
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/login");
+  };
   // Etat pour stocker la liste des matériaux
   const [materials, setMaterials] = useState([]);
+  const [sortBy, setSortBy] = useState("createdAt");
   // Etat pour le formulaire (ajout ou édition)
   const [formData, setFormData] = useState({
     name: "",
@@ -45,6 +39,9 @@ const Admin = () => {
           ...data[id],
         });
       }
+      formattedMaterials.sort((a, b) => {
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
       setMaterials(formattedMaterials);
     });
     return () => unsubscribe();
@@ -55,24 +52,70 @@ const Admin = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Extraction des catégories uniques à partir des matériaux
+  const uniqueCategories = [
+    ...new Set(materials.map((material) => material.category).filter(Boolean)),
+  ];
+
   // Traitement du formulaire (ajout ou édition)
+  // const handleSubmit = (e) => {
+  //   e.preventDefault();
+  //   const materialsRef = ref(database, "materials");
+
+  //   // Conversion des mots-clés (entrée texte séparée par des virgules) en tableau
+  //   const keywordsArray = formData.keywords
+  //     ? formData.keywords.split(",").map((k) => k.trim())
+  //     : [];
+
+  //   if (editingId) {
+  //     // Mise à jour d'un matériau existant
+  //     const materialRef = ref(database, "materials/" + editingId);
+  //     update(materialRef, {
+  //       ...formData,
+  //       keywords: keywordsArray,
+  //     }).then(() => {
+  //       // Réinitialiser le formulaire et le mode édition
+  //       setEditingId(null);
+  //       setFormData({
+  //         name: "",
+  //         link: "",
+  //         category: "",
+  //         keywords: "",
+  //         comments: "",
+  //       });
+  //     });
+  //   } else {
+  //     // Ajout d'un nouveau matériau
+  //     push(materialsRef, {
+  //       ...formData,
+  //       keywords: keywordsArray,
+  //     }).then(() => {
+  //       // Réinitialiser le formulaire
+  //       setFormData({
+  //         name: "",
+  //         link: "",
+  //         category: "",
+  //         keywords: "",
+  //         comments: "",
+  //       });
+  //     });
+  //   }
+  // };
   const handleSubmit = (e) => {
     e.preventDefault();
     const materialsRef = ref(database, "materials");
 
-    // Conversion des mots-clés (entrée texte séparée par des virgules) en tableau
     const keywordsArray = formData.keywords
       ? formData.keywords.split(",").map((k) => k.trim())
       : [];
 
     if (editingId) {
-      // Mise à jour d'un matériau existant
       const materialRef = ref(database, "materials/" + editingId);
       update(materialRef, {
         ...formData,
         keywords: keywordsArray,
+        // Vous pouvez décider de ne pas modifier createdAt lors de l'édition
       }).then(() => {
-        // Réinitialiser le formulaire et le mode édition
         setEditingId(null);
         setFormData({
           name: "",
@@ -83,12 +126,12 @@ const Admin = () => {
         });
       });
     } else {
-      // Ajout d'un nouveau matériau
+      // Ajout d'un nouveau matériau avec le champ createdAt
       push(materialsRef, {
         ...formData,
         keywords: keywordsArray,
+        createdAt: Date.now(),
       }).then(() => {
-        // Réinitialiser le formulaire
         setFormData({
           name: "",
           link: "",
@@ -130,15 +173,24 @@ const Admin = () => {
     });
   };
 
+  // Appliquer le tri dynamique en fonction du choix utilisateur
+  const sortedMaterials = [...materials].sort((a, b) => {
+    if (sortBy === "name") {
+      return a.name.localeCompare(b.name); // Tri alphabétique
+    } else {
+      return (b.createdAt || 0) - (a.createdAt || 0); // Tri par date (récent en premier)
+    }
+  });
+
   return (
     <div>
-         <h1>Admin</h1>
-         <button onClick={handleLogout}>Log out</button>
+      <h1>Admin</h1>
+      <button onClick={handleLogout}>Log out</button>
 
       {/* Formulaire d'ajout / édition */}
       <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
         <div>
-          <label>Name :</label>
+          <label>Material name :</label>
           <input
             type="text"
             name="name"
@@ -164,6 +216,19 @@ const Admin = () => {
             value={formData.category}
             onChange={handleInputChange}
           />
+          <select
+            name="category"
+            value={formData.category}
+            onChange={handleInputChange}
+            required
+          >
+            <option value="">-- Select a category --</option>
+            {uniqueCategories.map((cat, index) => (
+              <option key={index} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label>Key words (separted by commas) :</label>
@@ -182,9 +247,7 @@ const Admin = () => {
             onChange={handleInputChange}
           ></textarea>
         </div>
-        <button type="submit">
-          {editingId ? "Edit" : "Add"}
-        </button>
+        <button type="submit">{editingId ? "Edit" : "Add"}</button>
         {editingId && (
           <button type="button" onClick={handleCancelEdit}>
             Cancel
@@ -192,20 +255,30 @@ const Admin = () => {
         )}
       </form>
 
+      <div style={{ marginBottom: "20px" }}>
+        <label> Sorted by : </label>
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="createdAt">Created at</option>
+          <option value="name">Material name(A-Z)</option>
+        </select>
+      </div>
+
+
       {/* Tableau des matériaux */}
       <table border="1" cellPadding="8">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Material name</th>
             <th>Link</th>
             <th>Category</th>
             <th>Key words</th>
             <th>Comments</th>
             <th>Actions</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {materials.map((material) => (
+          {sortedMaterials.map((material, index) => (
             <tr key={material.id}>
               <td>{material.name}</td>
               <td>
@@ -234,6 +307,7 @@ const Admin = () => {
                   Delete
                 </button>
               </td>
+              <td>{index + 1}</td>
             </tr>
           ))}
         </tbody>

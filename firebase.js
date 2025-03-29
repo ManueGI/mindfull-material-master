@@ -6,7 +6,7 @@ import { getAuth } from 'firebase/auth';
 
 // Configuration Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyBtTbzqPauHWfDQ9txETtxFHwSP1rIF2dY",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "mindful-material-master.firebaseapp.com",
   projectId: "mindful-material-master",
   storageBucket: "mindful-material-master.appspot.com",

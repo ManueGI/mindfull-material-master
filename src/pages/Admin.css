@@ -1,0 +1,280 @@
+/* General style */
+.admin-container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 40px auto;
+  padding: 32px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.admin-title {
+  text-align: left;
+  margin-bottom: 0;
+  color: #2d3748;
+  font-size: 2.1rem;
+}
+
+.logout-btn {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background: #c53030;
+}
+
+.admin-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 32px;
+  background: #f7fafc;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.form-group {
+  flex: 1 1 260px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.admin-form label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #4a5568;
+}
+
+.admin-form input,
+.admin-form select {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fff;
+  margin-bottom: 8px;
+}
+
+.comments-textarea {
+  min-height: 80px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fff;
+  margin-bottom: 8px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.form-btn {
+  background: #3182ce;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  min-width: 110px;
+}
+
+.cancel-btn {
+  background: #a0aec0;
+  color: #fff;
+}
+
+.form-btn:hover {
+  background: #2563eb;
+}
+
+.cancel-btn:hover {
+  background: #718096;
+}
+
+.admin-sort {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  background: #f7fafc;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin: 0 auto;
+  table-layout: auto;
+}
+
+.admin-table th, .admin-table td {
+  padding: 12px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table td:nth-child(7) {
+  max-width: 220px;
+  min-width: 120px;
+  width: 18vw;
+  word-break: break-word;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+}
+
+.admin-table th {
+  background: #e2e8f0;
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.admin-table tr:nth-child(even) {
+  background: #f1f5f9;
+}
+
+.admin-table tr:hover {
+  background: #e0e7ef;
+}
+
+.admin-table a {
+  color: #3182ce;
+  text-decoration: underline;
+}
+
+.admin-actions button {
+  margin-right: 6px;
+  padding: 6px 14px;
+  font-size: 0.95rem;
+}
+
+.admin-search-bar {
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-search-bar input {
+  width: 320px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fff;
+  transition: border 0.2s;
+}
+
+.admin-search-bar input:focus {
+  outline: none;
+  border: 1.5px solid #3182ce;
+  background: #f0f8ff;
+}
+
+mark {
+  background: #ffe066;
+  color: #222;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.csv-upload-bar {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.csv-upload-bar .form-btn {
+  background: #e2e8f0; /* light gray */
+  color: #222;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  min-width: 120px;
+  margin: 0;
+  display: inline-block;
+  height: 44px; /* force same height for all buttons */
+  box-sizing: border-box;
+}
+
+.csv-upload-bar .form-btn:hover:not(:disabled) {
+  background: #a0aec0; /* dark gray on hover */
+  color: #fff;
+}
+
+.csv-upload-bar .form-btn:disabled {
+  background: #a0aec0;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.csv-upload-bar .form-btn + .form-btn {
+  margin-top: 0;
+}
+
+@media (max-width: 700px) {
+  .admin-container {
+    padding: 8px;
+  }
+  .admin-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .admin-table th, .admin-table td {
+    padding: 8px 4px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-table td:nth-child(7) {
+    max-width: 120px;
+    width: 30vw;
+  }
+}
+
+@media (max-width: 1300px) {
+  .admin-container {
+    max-width: 98vw;
+    padding: 8px;
+  }
+  .admin-table {
+    font-size: 0.97rem;
+  }
+}

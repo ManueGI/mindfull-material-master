@@ -1,33 +1,71 @@
+import "./Admin.css";
 // import React from 'react';
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ref, onValue, push, update, remove } from "firebase/database";
 import { database } from "../../firebase";
+import Papa from "papaparse";
 
 const Admin = () => {
   const navigate = useNavigate();
+  const [materials, setMaterials] = useState([]);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [formData, setFormData] = useState({
+    name: "",
+    link: "",
+    category: "",
+    subCategory: "",
+    keywords: "",
+    comments: "",
+  });
+  const [editingId, setEditingId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef();
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/login");
   };
-  // Etat pour stocker la liste des matériaux
-  const [materials, setMaterials] = useState([]);
-  const [sortBy, setSortBy] = useState("createdAt");
-  // Etat pour le formulaire (ajout ou édition)
-  const [formData, setFormData] = useState({
-    name: "",
-    link: "",
-    category: "",
-    keywords: "",
-    comments: "",
-  });
-  // Etat pour savoir si on est en mode édition (l'ID du matériau à éditer) ou ajout (null)
-  const [editingId, setEditingId] = useState(null);
 
-  // Chargement des matériaux depuis la DB
+  // Handle CSV upload
+  const handleCSVUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLoading(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const materialsRef = ref(database, "materials");
+        const promises = results.data.map((row) => {
+          // Make column matching case-insensitive
+          const get = (key) => {
+            const found = Object.keys(row).find(k => k.trim().toLowerCase() === key.toLowerCase());
+            return found ? row[found] : "";
+          };
+          const keywords = get("Keywords") ? get("Keywords").split(/[,|]/).map(k => k.trim()).filter(Boolean) : [];
+          return push(materialsRef, {
+            name: get("Name"),
+            link: get("Link"),
+            category: get("Material category"),
+            subCategory: get("Subcategory"),
+            keywords,
+            comments: get("Comments"),
+            createdAt: Date.now(),
+          });
+        });
+        await Promise.all(promises);
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      },
+      error: () => setLoading(false),
+    });
+  };
+
+  // Loading materials from the DB
   useEffect(() => {
     const materialsRef = ref(database, "materials");
     const unsubscribe = onValue(materialsRef, (snapshot) => {
@@ -47,60 +85,21 @@ const Admin = () => {
     return () => unsubscribe();
   }, []);
 
-  // Mise à jour du formulaire lors de la saisie
+  // Update the form when typing
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Extraction des catégories uniques à partir des matériaux
+  // Extract unique categories from materials
   const uniqueCategories = [
     ...new Set(materials.map((material) => material.category).filter(Boolean)),
   ];
+  // Extract unique subcategories from materials
+  const uniqueSubCategories = [
+    ...new Set(materials.map((material) => material.subCategory).filter(Boolean)),
+  ];
 
-  // Traitement du formulaire (ajout ou édition)
-  // const handleSubmit = (e) => {
-  //   e.preventDefault();
-  //   const materialsRef = ref(database, "materials");
-
-  //   // Conversion des mots-clés (entrée texte séparée par des virgules) en tableau
-  //   const keywordsArray = formData.keywords
-  //     ? formData.keywords.split(",").map((k) => k.trim())
-  //     : [];
-
-  //   if (editingId) {
-  //     // Mise à jour d'un matériau existant
-  //     const materialRef = ref(database, "materials/" + editingId);
-  //     update(materialRef, {
-  //       ...formData,
-  //       keywords: keywordsArray,
-  //     }).then(() => {
-  //       // Réinitialiser le formulaire et le mode édition
-  //       setEditingId(null);
-  //       setFormData({
-  //         name: "",
-  //         link: "",
-  //         category: "",
-  //         keywords: "",
-  //         comments: "",
-  //       });
-  //     });
-  //   } else {
-  //     // Ajout d'un nouveau matériau
-  //     push(materialsRef, {
-  //       ...formData,
-  //       keywords: keywordsArray,
-  //     }).then(() => {
-  //       // Réinitialiser le formulaire
-  //       setFormData({
-  //         name: "",
-  //         link: "",
-  //         category: "",
-  //         keywords: "",
-  //         comments: "",
-  //       });
-  //     });
-  //   }
-  // };
+  // Form processing (add or edit)
   const handleSubmit = (e) => {
     e.preventDefault();
     const materialsRef = ref(database, "materials");
@@ -114,19 +113,20 @@ const Admin = () => {
       update(materialRef, {
         ...formData,
         keywords: keywordsArray,
-        // Vous pouvez décider de ne pas modifier createdAt lors de l'édition
+        // You can decide not to modify createdAt when editing
       }).then(() => {
         setEditingId(null);
         setFormData({
           name: "",
           link: "",
           category: "",
+          subCategory: "",
           keywords: "",
           comments: "",
         });
       });
     } else {
-      // Ajout d'un nouveau matériau avec le champ createdAt
+      // Add new material with createdAt field
       push(materialsRef, {
         ...formData,
         keywords: keywordsArray,
@@ -136,6 +136,7 @@ const Admin = () => {
           name: "",
           link: "",
           category: "",
+          subCategory: "",
           keywords: "",
           comments: "",
         });
@@ -143,54 +144,141 @@ const Admin = () => {
     }
   };
 
-  // Suppression d'un matériau
+  // Delete a material
   const handleDelete = (id) => {
     const materialRef = ref(database, "materials/" + id);
     remove(materialRef);
   };
 
-  // Préparer le formulaire pour l'édition d'un matériau
+  // Prepare the form for editing a material
   const handleEdit = (material) => {
     setEditingId(material.id);
     setFormData({
       name: material.name || "",
       link: material.link || "",
       category: material.category || "",
+      subCategory: material.subCategory || "",
       keywords: material.keywords ? material.keywords.join(", ") : "",
       comments: material.comments || "",
     });
   };
 
-  // Annuler le mode édition
+  // Cancel edit mode
   const handleCancelEdit = () => {
     setEditingId(null);
     setFormData({
       name: "",
       link: "",
       category: "",
+      subCategory: "",
       keywords: "",
       comments: "",
     });
   };
 
-  // Appliquer le tri dynamique en fonction du choix utilisateur
+  // Apply dynamic sorting based on user choice
   const sortedMaterials = [...materials].sort((a, b) => {
     if (sortBy === "name") {
-      return a.name.localeCompare(b.name); // Tri alphabétique
+      return a.name.localeCompare(b.name);
+    } else if (sortBy === "category") {
+      return (a.category || "").localeCompare(b.category || "");
     } else {
-      return (b.createdAt || 0) - (a.createdAt || 0); // Tri par date (récent en premier)
+      return (b.createdAt || 0) - (a.createdAt || 0);
     }
   });
 
-  return (
-    <div>
-      <h1>Admin</h1>
-      <button onClick={handleLogout}>Log out</button>
+  // Helper to highlight search matches
+  const highlightMatch = (text, search) => {
+    if (!search) return text;
+    const regex = new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    return String(text).split(regex).map((part, i) =>
+      regex.test(part) ? <mark key={i} style={{background: '#ffe066', padding: 0}}>{part}</mark> : part
+    );
+  };
 
-      {/* Formulaire d'ajout / édition */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
-        <div>
-          <label>Material name :</label>
+  // Filter materials based on search
+  const filteredMaterials = sortedMaterials.filter((material) => {
+    const searchLower = search.toLowerCase();
+    return (
+      material.name?.toLowerCase().includes(searchLower) ||
+      (Array.isArray(material.keywords) && material.keywords.join(", ").toLowerCase().includes(searchLower)) ||
+      material.category?.toLowerCase().includes(searchLower) ||
+      material.subCategory?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  return (
+    <div className="admin-container">
+      <div className="admin-header">
+        <h1 className="admin-title">Admin</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <button className="logout-btn" onClick={handleLogout}>Log out</button>
+          <div className="csv-upload-bar" style={{ marginTop: 10 }}>
+            <input
+              type="file"
+              accept=".csv"
+              style={{ display: "none" }}
+              ref={fileInputRef}
+              onChange={handleCSVUpload}
+            />
+            {loading ? (
+              <span className="csv-loader" style={{minWidth: 120, display: 'inline-block', textAlign: 'center'}}>Uploading...</span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="form-btn"
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  disabled={loading}
+                >
+                  Upload CSV
+                </button>
+                <button
+                  type="button"
+                  className="form-btn"
+                  onClick={() => {
+                    // Prepare CSV content
+                    const headers = [
+                      'Name',
+                      'Link',
+                      'Material category',
+                      'Subcategory',
+                      'Keywords',
+                      'Comments'
+                    ];
+                    const rows = materials.map(m => [
+                      m.name || '',
+                      m.link || '',
+                      m.category || '',
+                      m.subCategory || '',
+                      Array.isArray(m.keywords) ? m.keywords.join(', ') : (m.keywords || ''),
+                      m.comments || ''
+                    ]);
+                    const csv = [headers.join(','), ...rows.map(r => r.map(field => '"' + String(field).replace(/"/g, '""') + '"').join(','))].join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `materials_${new Date().toISOString().slice(0,10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  disabled={loading}
+                >
+                  Download CSV
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Add / Edit form */}
+      <form onSubmit={handleSubmit} className="admin-form">
+        <div className="form-group">
+          <label>Name:</label>
           <input
             type="text"
             name="name"
@@ -199,8 +287,8 @@ const Admin = () => {
             required
           />
         </div>
-        <div>
-          <label>Link :</label>
+        <div className="form-group">
+          <label>Link:</label>
           <input
             type="text"
             name="link"
@@ -208,30 +296,40 @@ const Admin = () => {
             onChange={handleInputChange}
           />
         </div>
-        <div>
-          <label>Category :</label>
+        <div className="form-group">
+          <label>Category:</label>
           <input
             type="text"
             name="category"
             value={formData.category}
             onChange={handleInputChange}
+            placeholder="Type a new category or select one"
+            list="category-list"
           />
-          <select
-            name="category"
-            value={formData.category}
-            onChange={handleInputChange}
-            required
-          >
-            <option value="">-- Select a category --</option>
+          <datalist id="category-list">
             {uniqueCategories.map((cat, index) => (
-              <option key={index} value={cat}>
-                {cat}
-              </option>
+              <option key={index} value={cat} />
             ))}
-          </select>
+          </datalist>
         </div>
-        <div>
-          <label>Key words (separted by commas) :</label>
+        <div className="form-group">
+          <label>Subcategory:</label>
+          <input
+            type="text"
+            name="subCategory"
+            value={formData.subCategory}
+            onChange={handleInputChange}
+            placeholder="Type a new subcategory or select one"
+            list="subcategory-list"
+          />
+          <datalist id="subcategory-list">
+            {uniqueSubCategories.map((sub, index) => (
+              <option key={index} value={sub} />
+            ))}
+          </datalist>
+        </div>
+        <div className="form-group">
+          <label>Keywords (separated by commas):</label>
           <input
             type="text"
             name="keywords"
@@ -239,48 +337,62 @@ const Admin = () => {
             onChange={handleInputChange}
           />
         </div>
-        <div>
-          <label>Comments :</label>
+        <div className="form-group">
+          <label>Comments:</label>
           <textarea
             name="comments"
             value={formData.comments}
             onChange={handleInputChange}
+            className="comments-textarea"
           ></textarea>
         </div>
-        <button type="submit">{editingId ? "Edit" : "Add"}</button>
-        {editingId && (
-          <button type="button" onClick={handleCancelEdit}>
-            Cancel
-          </button>
-        )}
+        <div className="form-actions">
+          <button type="submit" className="form-btn">{editingId ? "Save changes" : "Add"}</button>
+          {editingId && (
+            <button type="button" className="form-btn cancel-btn" onClick={handleCancelEdit}>
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
 
-      <div style={{ marginBottom: "20px" }}>
-        <label> Sorted by : </label>
+      <div className="admin-sort">
+        <label>Sorted by:</label>
         <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
           <option value="createdAt">Created at</option>
-          <option value="name">Material name(A-Z)</option>
+          <option value="name">Name (A-Z)</option>
+          <option value="category">Material category (A-Z)</option>
         </select>
       </div>
 
+      <div className="admin-search-bar">
+        <input
+          type="text"
+          placeholder="Search by name, keywords, or category..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
 
-      {/* Tableau des matériaux */}
-      <table border="1" cellPadding="8">
+      {/* Materials table */}
+      <table className="admin-table" border="0" cellPadding="0">
         <thead>
           <tr>
-            <th>Material name</th>
+            <th></th>
+            <th>Name</th>
             <th>Link</th>
-            <th>Category</th>
-            <th>Key words</th>
+            <th>Material category</th>
+            <th>Subcategory</th>
+            <th>Keywords</th>
             <th>Comments</th>
             <th>Actions</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
-          {sortedMaterials.map((material, index) => (
+          {filteredMaterials.map((material, index) => (
             <tr key={material.id}>
-              <td>{material.name}</td>
+              <td>{index + 1}</td>
+              <td>{highlightMatch(material.name, search)}</td>
               <td>
                 {material.link ? (
                   <a
@@ -288,26 +400,26 @@ const Admin = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Lien
+                    Link
                   </a>
                 ) : (
                   "-"
                 )}
               </td>
-              <td>{material.category}</td>
+              <td>{highlightMatch(material.category, search)}</td>
+              <td>{highlightMatch(material.subCategory, search)}</td>
               <td>
                 {material.keywords && Array.isArray(material.keywords)
-                  ? material.keywords.join(", ")
+                  ? highlightMatch(material.keywords.join(", "), search)
                   : "-"}
               </td>
               <td>{material.comments}</td>
-              <td>
+              <td className="admin-actions">
                 <button onClick={() => handleEdit(material)}>Edit</button>
                 <button onClick={() => handleDelete(material.id)}>
                   Delete
                 </button>
               </td>
-              <td>{index + 1}</td>
             </tr>
           ))}
         </tbody>
